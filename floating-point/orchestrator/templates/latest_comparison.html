@@ -68,6 +68,34 @@
             </table>
         </div>
     </div>
+
+    <div class="matrix-container" style="margin-top: 2rem;">
+        <h3>Matrix Information</h3>
+        {% if matrices.matrix_info %}
+            {% for name, info in matrices.matrix_info.items() %}
+                <h4>Matrix {{ name }}</h4>
+                <table>
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr><td>Condition Number</td><td>{{ "%.4e"|format(info.condition_number) if info.condition_number != 'N/A' else 'N/A' }}</td></tr>
+                    <tr><td>Max Element</td><td>{{ "%.4e"|format(info.max_element) }}</td></tr>
+                    <tr><td>Percentage of 1s</td><td>{{ "%.2f"|format(info.percentage_of_ones) }}%</td></tr>
+                    <tr><td>Percentage of 0s</td><td>{{ "%.2f"|format(info.percentage_of_zeros) }}%</td></tr>
+                    <tr>
+                        <td>Range in Buckets</td>
+                        <td>
+                            <ul>
+                            {% for r, count in info.range_in_buckets.items() %}
+                                <li>{{ r }}: {{ count }}</li>
+                            {% endfor %}
+                            </ul>
+                        </td>
+                    </tr>
+                </table>
+            {% endfor %}
+        {% else %}
+            <p>No matrix information available.</p>
+        {% endif %}
+    </div>
 {% else %}
     <p>No computation has been run yet. Click "Start Computation" and then "Latest Comparison".</p>
 {% endif %}

@@ -22,7 +22,7 @@ import smpc_pb2_grpc
 # --- Setup Enhanced Logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - [ORCHESTRATOR] - %(message)s')
 
-# --- Utility Functions (unchanged) ---
+# --- Utility Functions ---
 def matrix_to_proto(matrix):
     if matrix is None: return smpc_pb2.Matrix(data=[], rows=0, cols=0)
     return smpc_pb2.Matrix(data=matrix.flatten().astype(np.float64).tolist(), rows=matrix.shape[0], cols=matrix.shape[1])
@@ -67,6 +67,67 @@ def calculate_error_metrics(computed, plaintext):
         'snr_db': float(10 * np.log10(signal_power / noise_power) if noise_power > 1e-12 else float('inf'))
     }
 
+def get_matrix_info(matrix):
+    """
+    Calculates various informational metrics for a given matrix with flexible bucketing.
+    """
+    if matrix is None:
+        return {
+            'condition_number': 'N/A',
+            'max_element': 'N/A',
+            'percentage_of_ones': 0,
+            'percentage_of_zeros': 0,
+            'range_in_buckets': {}
+        }
+
+    if not isinstance(matrix, np.ndarray):
+        matrix = np.array(matrix)
+
+    # a) Condition Number
+    condition_number = 'N/A'
+    if matrix.ndim == 2 and matrix.shape[0] == matrix.shape[1]:
+        if np.linalg.det(matrix) != 0:
+            condition_number = np.linalg.cond(matrix)
+        else:
+            condition_number = 'N/A'
+    else:
+        condition_number = 'N/A'
+
+    # b) Max Absolute Element
+    max_element = np.max(np.abs(matrix)) if matrix.size > 0 else 'N/A'
+
+    # c) Percentage of 1s
+    percentage_of_ones = (np.count_nonzero(matrix == 1) / matrix.size) * 100 if matrix.size > 0 else 0
+
+    # d) Percentage of 0s
+    percentage_of_zeros = (np.count_nonzero(matrix == 0) / matrix.size) * 100 if matrix.size > 0 else 0
+
+    # e) Flexible Range in Buckets
+    buckets = {}
+    if matrix.size > 0:
+        min_val, max_val = np.min(matrix), np.max(matrix)
+        if min_val == max_val:
+            buckets[f"[{min_val:.2e}]"] = matrix.size
+        else:
+            num_buckets = 10
+            # np.histogram handles the bins as [e0, e1), [e1, e2), ..., [eN-1, eN] (inclusive on last)
+            hist, bin_edges = np.histogram(matrix, bins=num_buckets)
+            for i in range(num_buckets):
+                if i < num_buckets - 1:
+                    label = f"[{bin_edges[i]:.2e}, {bin_edges[i+1]:.2e})"
+                else:
+                    # Last bucket is inclusive of both ends
+                    label = f"[{bin_edges[i]:.2e}, {bin_edges[i+1]:.2e}]"
+                buckets[label] = int(hist[i])
+
+    return {
+        'condition_number': condition_number,
+        'max_element': max_element,
+        'percentage_of_ones': percentage_of_ones,
+        'percentage_of_zeros': percentage_of_zeros,
+        'range_in_buckets': buckets
+    }
+
 # --- Orchestrator gRPC Service for Party Callbacks ---
 class OrchestratorService(smpc_pb2_grpc.OrchestratorServiceServicer):
     def __init__(self, orchestrator_instance):
@@ -85,7 +146,6 @@ class SMPCOrchestrator:
         self.grpc_port = int(os.getenv('GRPC_PORT', 50051))
         self.party_addresses = os.getenv('PARTY_GRPC_ADDRESSES', '').split(',')
         
-        # CORRECT: Initialize latest_matrices dictionary
         self.latest_matrices = {}
         
         self.results_df = pd.DataFrame()
@@ -104,9 +164,10 @@ class SMPCOrchestrator:
 
     def init_party_clients(self):
         logging.info("Initializing gRPC clients to parties...")
+        options = [('grpc.max_send_message_length', 100 * 1024 * 1024), ('grpc.max_receive_message_length', 100 * 1024 * 1024)] # 100 MB limit for large matrices
         for i, address in enumerate(self.party_addresses):
             if address.strip():
-                channel = grpc.insecure_channel(address.strip())
+                channel = grpc.insecure_channel(address.strip(), options=options)
                 self.party_clients[i+1] = smpc_pb2_grpc.PartyComputationServiceStub(channel)
                 logging.info(f"Connected to Party {i+1} at {address.strip()}")
     
@@ -164,11 +225,9 @@ class SMPCOrchestrator:
         @self.app.route('/api/get_results', methods=['GET'])
         def get_results():
             results = self.results_df.to_dict('records')
-            # CORRECT: Render only the table, no chart
             table_html = render_template('results_table.html', results=results)
             return Response(table_html)
 
-        # CORRECT: Add new route for matrix comparison
         @self.app.route('/api/latest_comparison')
         def latest_comparison():
             return render_template('latest_comparison.html', matrices=self.latest_matrices)
@@ -222,7 +281,6 @@ class SMPCOrchestrator:
 
         logging.info(f"All parties have completed step '{step_name}' successfully.")
 
-    # --- CORRECTED run_computation Method ---
     def run_computation(self, config, run_id):
         logging.info(f"--- Starting new computation (ID: {run_id[:8]}) ---")
         logging.info(f"Configuration: {config}")
@@ -233,10 +291,8 @@ class SMPCOrchestrator:
             matrices = self.generate_matrices(config)
             if matrices is None: return
 
-            # This call now returns the final matrix in its result dictionary
             result_metrics = self.execute_secure_computation(matrices, config, run_id)
 
-            # Extract the final computed matrix from the results
             final_computed = result_metrics['smpc_result']
             
             result_metrics.update(config)
@@ -245,10 +301,8 @@ class SMPCOrchestrator:
             with self.computation_lock:
                 self.results_df = pd.concat([self.results_df, pd.DataFrame([result_metrics])], ignore_index=True)
                 self.results_df.to_csv(self.csv_file, index=False)
-                # CORRECT: Save the latest result to a new CSV file
                 self.results_df.tail(1).to_csv('/app/results/latest_result.csv', index=False)
 
-            # CORRECT: Populate the dictionary for the comparison page
             self.latest_matrices = {
                 'A': matrices['A'],
                 'T': matrices['T'],
@@ -258,13 +312,18 @@ class SMPCOrchestrator:
                 'smpc_result': final_computed
             }
             
+            matrix_info = {}
+            for name, matrix_data in self.latest_matrices.items():
+                matrix_info[name] = get_matrix_info(matrix_data)
+            self.latest_matrices['matrix_info'] = matrix_info
+
             logging.info(f"--- Computation {run_id[:8]} completed successfully ---")
         except Exception as e:
             logging.error(f"Computation {run_id[:8]} failed: {e}", exc_info=True)
         finally:
              with self.computation_lock:
                  if run_id in self.running_computations:
-                     self.running_computations.remove(run_id)
+                       self.running_computations.remove(run_id)
 
     def generate_matrices(self, config):
         logging.info("Step 0: Generating plaintext matrices...")
@@ -303,7 +362,6 @@ class SMPCOrchestrator:
             logging.error(f"Matrix generation failed: {e}", exc_info=True)
             return None
 
-    # --- CORRECTED execute_secure_computation Method ---
     def execute_secure_computation(self, matrices, config, run_id):
         start_time = time.time()
         
@@ -316,8 +374,6 @@ class SMPCOrchestrator:
                 client.ReceiveShares(smpc_pb2.ShareDistribution(
                     computation_id=run_id, matrix_name=name, share=matrix_to_proto(shares[party_id-1])))
 
-        # --- Execute workflow with trigger-and-wait ---
-        
         logging.info("Step 1: Triggering SecureMatMul A * T.")
         self._trigger_and_wait(run_id, 'SecureMatMul:AT', 'SecureMatMul', lambda p_id: smpc_pb2.MatMulRequest(computation_id=run_id, matrix_a_name='A', matrix_b_name='T', result_name='AT'))
         
@@ -351,10 +407,9 @@ class SMPCOrchestrator:
         error_metrics = calculate_error_metrics(final_computed, matrices['final_plaintext_result'])
         logging.info(f"Error metrics: {error_metrics}")
         
-        # CORRECT: Include the final computed matrix in the returned dictionary
         return {
             'float_point_time_s': duration,
-            'smpc_result': final_computed,  # <-- THIS IS THE KEY FIX
+            'smpc_result': final_computed, 
             **{f'float_{k}': v for k, v in error_metrics.items()},
             'matrix_cond_A': matrices['matrix_cond_A'],
             'matrix_cond_T': matrices['matrix_cond_T']
@@ -376,7 +431,11 @@ class SMPCOrchestrator:
         return reconstruct_shares(shares)
 
     def run(self):
-        grpc_server = grpc.server(ThreadPoolExecutor(max_workers=10))
+        options = [
+            ('grpc.max_send_message_length', 100 * 1024 * 1024),  # 100 MB limit for large matrices
+            ('grpc.max_receive_message_length', 100 * 1024 * 1024) # 100 MB limit for large matrices
+        ]
+        grpc_server = grpc.server(ThreadPoolExecutor(max_workers=10), options=options)
         smpc_pb2_grpc.add_OrchestratorServiceServicer_to_server(OrchestratorService(self), grpc_server)
         grpc_server.add_insecure_port(f'0.0.0.0:{self.grpc_port}')
         grpc_server.start()

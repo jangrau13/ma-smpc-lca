@@ -47,7 +47,8 @@ class SMPCParty(smpc_pb2_grpc.PartyComputationServiceServicer):
     def init_clients(self):
         # Connect to Orchestrator
         try:
-            channel = grpc.insecure_channel(self.orchestrator_addr)
+            options = [('grpc.max_send_message_length', 100 * 1024 * 1024), ('grpc.max_receive_message_length', 100 * 1024 * 1024)]
+            channel = grpc.insecure_channel(self.orchestrator_addr, options=options)
             self.orchestrator_client = smpc_pb2_grpc.OrchestratorServiceStub(channel)
             logging.info(f"Connected to orchestrator at {self.orchestrator_addr}")
         except Exception as e:
@@ -59,7 +60,8 @@ class SMPCParty(smpc_pb2_grpc.PartyComputationServiceServicer):
             if i == self.party_id: continue
             addr = f"party{i}:{50052 + (i-1)}"
             try:
-                channel = grpc.insecure_channel(addr)
+                options = [('grpc.max_send_message_length', 100 * 1024 * 1024), ('grpc.max_receive_message_length', 100 * 1024 * 1024)]
+                channel = grpc.insecure_channel(addr, options=options)
                 self.party_clients[i] = smpc_pb2_grpc.PartyComputationServiceStub(channel)
                 logging.info(f"Connected to Party {i} at {addr}")
             except Exception as e:
@@ -217,7 +219,11 @@ class SMPCParty(smpc_pb2_grpc.PartyComputationServiceServicer):
 
 def serve():
     party_id = int(os.getenv('PARTY_ID', 1))
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    options = [
+        ('grpc.max_send_message_length', 100 * 1024 * 1024),  # 100 MB limit for large matrices
+        ('grpc.max_receive_message_length', 100 * 1024 * 1024) # 100 MB limit for large matrices
+    ]
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10), options=options)
     party_service = SMPCParty(party_id)
     smpc_pb2_grpc.add_PartyComputationServiceServicer_to_server(party_service, server)
     

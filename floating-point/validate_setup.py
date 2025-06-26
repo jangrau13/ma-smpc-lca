@@ -14,7 +14,12 @@ required_files = [
     'orchestrator/main.py',
     'party/main.py',
     'common/utils.py',
-    'common/__init__.py'
+    'common/__init__.py',
+    'certs/ca.crt',
+    'certs/server.crt',
+    'certs/server.key',
+    'certs/client.crt',
+    'certs/client.key'
 ]
 
 missing_files = []
