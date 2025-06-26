@@ -1,0 +1,44 @@
+@startuml
+!theme plain
+title Decentralized Participation Protocol\nParticipating Entity (Supplier)
+start
+:Receive calculation identifier and\nestimated supply chain member\ncount (esm)from requesting entity;
+:Add requesting entity to\npending response registry\nfor calculation identifier;
+if (Computation graphs already constructed\nand sent for given calculation identifier?) then (yes)
+  :Retrieve stored index\nfrom cache;
+  :Send stored index to all entities\nin pending response registry;
+  :Clear pending response registry\nfor calculation identifier;
+  stop
+else (no)
+endif
+partition "**Phase 1 & 2: Registration and\nNotification Phase**" {
+  fork
+    :Register with Order Provider (OP)\nusing calculation identifier;
+    :Receive unique index\nfrom OP;
+  fork again
+    :Extract direct supplier contacts\nfrom BoM/ERP systems;
+  end fork
+  
+  if (Has direct suppliers?) then (yes)
+    fork
+      :Forward calculation identifier\nand esm to each\ndirect supplier;
+    fork again
+      :Wait for supplier indices;
+    end fork
+    :Collect returned indices\nfrom suppliers;
+  else (no)
+  endif
+  fork
+    :Construct technosphere vector A_i\n(dimension = esm, own index = 1.0,\nsupplier indices = negative\ninput quantities);
+  fork again
+    :Construct biosphere vector B_i;
+  end fork
+}
+partition "**Phase 3: Share Creation**" {
+  :Generate arithmetic shares for\nboth technosphere vector A_i\nand biosphere vector B_i;
+  :Distribute shares to designated\nComputation Parties;
+}
+:Send index to all entities\nin pending response registry;
+:Clear pending response registry\nfor calculation identifier;
+stop
+@enduml

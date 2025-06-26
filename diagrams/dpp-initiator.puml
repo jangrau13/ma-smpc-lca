@@ -1,0 +1,21 @@
+@startuml
+!theme plain
+title Decentralized Participation Protocol\nInitiator
+|Initiator|
+start
+:Generate unique\ncalculation ID;
+:Contact Order Provider with\ncalculationID and estimated\nsupply chain member count (esm);
+:Receive unique index\nfrom OP;
+:Extract direct supplier\ncontacts from BoM/ERP systems;
+if (Has direct suppliers?) then (yes)
+  :Send calculationID and esm\nto each direct supplier;
+  :Wait for supplier indices;
+  :Collect returned indices\nfrom suppliers;
+else (no)
+endif
+:Construct technosphere vector A_i\n(own index = 1.0,\nsuppliers = negative values);
+:Construct biosphere vector B_i;
+:Generate arithmetic shares\nfor both A_i and B_i vectors;
+:Distribute shares to\nComputation Parties\n(CP1, CP2, CP3);
+stop
+@enduml

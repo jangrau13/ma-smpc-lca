@@ -34,6 +34,19 @@ ENV/
 */results/*.log
 *.log
 
+*/smpc-lca_simulation_env
+*/activate_env.sh
+*/requirements.txt
+
+*/single-server/*.csv
+*/*.log
+numerical-analysis/single-server/smpc-lca_simulation_env
+numerical-analysis/single-server/activate_env.sh
+speed-analysis/matrix_benchmark_env
+speed-analysis/activate_benchmark_env.sh
+numerical-analysis/single-server/activate_env.sh
+numerical-analysis/data_analysis_env
+
 # Docker
 .dockerignore
 

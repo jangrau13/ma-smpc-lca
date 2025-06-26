@@ -1,0 +1,125 @@
+@startgantt
+title Critical Path Diagram of PEP-LCA (Privacy-Enhancing-Protocol for LCA)
+!theme plain
+<style>
+.crit {
+  BackGroundColor red
+  FontColor white
+  BorderColor red
+}
+</style>
+
+-- Decentralized Participation Protocol --
+[Decentralized Participation Protocol] as [DPP] lasts 5 days
+
+-- [AT] --
+[1 round of NxN matrix sharing] as [Share1] lasts 2 days
+[Share1] starts at [DPP]'s end
+
+[3x (NxN) x (NxN)] as [MatMul1] lasts 2 days
+[MatMul1] starts at [Share1]'s end
+
+
+-- Reveal of [AT] --
+[1 round of NxN matrix sharing] as [Share2] lasts 2 days
+[Share2] starts at [MatMul1]'s end
+
+[2 round of NxN matrix addition] as [Add1] lasts 1 days
+[Add1] starts at [Share2]'s end
+
+-- Inverse of AT --
+[1 inverse of an NxN] as [Inv1] lasts 4 days
+[Inv1] starts at [Add1]'s end
+
+-- Resharing of (AT)^-1 --
+[2x random NxN matrix generation] as [RandGen1] lasts 1 days
+[RandGen1] starts at [Inv1]'s end
+
+[2x addition of NxN] as [Add2] lasts 1 days
+[Add2] starts at [RandGen1]'s end
+
+[2 round of sharing a NxN matrix] as [Share3] lasts 4 days
+[Share3] starts at [Add2]'s end
+
+-- [T][(AT)^-1] --
+[3x (NxN) x (NxN)] as [MatMul2] lasts 2 days
+[MatMul2] starts at [Share3]'s end
+
+-- Randomness Generation and Sharing --
+[1 random NxN matrix generation] as [RandGen2] lasts 1 day
+[RandGen2] starts at [MatMul2]'s end
+
+[1 round of sharing a NxN] as [Share4] lasts 2 days
+[Share4] starts at [RandGen2]'s end
+
+[2x NxN matrix additions] as [AddRand] lasts 1 days
+[AddRand] starts at [Share4]'s end
+
+[1 round of sharing a NxN] as [Share5] lasts 2 days
+[Share5] starts at [AddRand]'s end
+
+-- [A^-1]*[f] --
+[1 round of sharing an Nx1 matrix] as [ShareNx1_new] lasts 1 days
+[ShareNx1_new] starts at [Share5]'s end
+
+[3 rounds of (NxN) x (Nx1)] as [MatMul3] lasts 2 days
+[MatMul3] starts at [ShareNx1_new]'s end
+
+-- Randomness Generation and Sharing --
+[1 random Nx1 matrix generation] as [RandGen3] lasts 1 day
+[RandGen3] starts at [MatMul3]'s end
+
+[1 round of sharing Nx1] as [Share6] lasts 1 days
+[Share6] starts at [RandGen3]'s end
+
+[2 additions of Nx1] as [Add3] lasts 1 days
+[Add3] starts at [Share6]'s end
+
+[1 round of sharing Nx1] as [Share8] lasts 1 days
+[Share8] starts at [Add3]'s end
+
+[Local diagonal creation] happens at [Share8]'s end
+
+-- [B][diag(A^-1f)] --
+
+[1 round of sharing an RxN matrix] as [ShareRxN_new] lasts 2 days
+[ShareRxN_new] starts at [Share8]'s end
+
+[3 matmul (RxN) x (NxN)] as [MatMul4] lasts 2 days
+[MatMul4] starts at [ShareRxN_new]'s end
+
+-- Reveal of [B][diag(A^-1f)] --
+[1 round of sharing RxN] as [Share7] lasts 2 days
+[Share7] starts at [MatMul4]'s end
+
+[1 addition of RxN] as [Add4] lasts 1 days
+[Add4] starts at [Share7]'s end
+
+[Protocol Complete] happens at [Add4]'s end
+
+[DPP] is colored in green
+[Share1] is colored in red
+[MatMul1] is colored in blue
+[Share2] is colored in red
+[Add1] is colored in blue
+[Inv1] is colored in blue
+[RandGen1] is colored in blue
+[Add2] is colored in blue
+[Share3] is colored in red
+[MatMul2] is colored in blue
+[RandGen2] is colored in blue
+[Share4] is colored in red
+[AddRand] is colored in blue
+[Share5] is colored in red
+[ShareNx1_new] is colored in red
+[MatMul3] is colored in blue
+[RandGen3] is colored in blue
+[Share6] is colored in red
+[Add3] is colored in blue
+[Share8] is colored in red
+[ShareRxN_new] is colored in red
+[MatMul4] is colored in blue
+[Share7] is colored in red
+[Add4] is colored in blue
+
+@endgantt

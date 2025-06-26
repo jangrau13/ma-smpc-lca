@@ -1,0 +1,127 @@
+{
+  "system_info": {
+    "gpu_vendor": "nvidia",
+    "gpu_id": 0,
+    "compute_capability": "9.0",
+    "total_memory_bytes": 0,
+    "total_memory_gb": 0.0,
+    "MultiprocessorCount": "Unknown",
+    "MaxThreadsPerBlock": 1024,
+    "MaxBlockDimX": 1024,
+    "MaxBlockDimY": 1024,
+    "MaxBlockDimZ": 64,
+    "MaxGridDimX": 2147483647,
+    "MaxGridDimY": 65535,
+    "MaxGridDimZ": 65535,
+    "WarpSize": 32,
+    "MaxSharedMemoryPerBlock": 49152,
+    "ClockRate": 1980000,
+    "MemoryClockRate": 3201000,
+    "GlobalMemoryBusWidth": 6144,
+    "L2CacheSize": 62914560,
+    "MaxRegistersPerBlock": 65536,
+    "gpu_name": "NVIDIA H200",
+    "driver_version": "575.51.03",
+    "cupy_version": "13.4.1",
+    "numpy_version": "1.26.3",
+    "python_version": "3.11.10",
+    "platform": "Linux-6.8.0-60-generic-x86_64-with-glibc2.35",
+    "cuda_version": "12.4"
+  },
+  "benchmark_results": {
+    "float64_matmul": {
+      "results": [
+        [
+          100,
+          0.00015594707801938056
+        ],
+        [
+          250,
+          0.00012291683815419675
+        ],
+        [
+          500,
+          0.0002808611374348402
+        ],
+        [
+          1000,
+          0.00025876862928271295
+        ],
+        [
+          2500,
+          0.0007502713706344366
+        ],
+        [
+          5000,
+          0.0046604706440120935
+        ],
+        [
+          10000,
+          0.03757439162582159
+        ],
+        [
+          20000,
+          0.3214977949857712
+        ],
+        [
+          50000,
+          5.032606132794172
+        ]
+      ],
+      "failed_sizes": []
+    },
+    "int64_matmul": {
+      "results": [
+        [
+          100,
+          0.0011442198418080806
+        ],
+        [
+          250,
+          0.0002725128084421158
+        ],
+        [
+          500,
+          0.001498105563223362
+        ],
+        [
+          1000,
+          0.0008665606379508972
+        ],
+        [
+          2500,
+          0.008193506207317115
+        ],
+        [
+          5000,
+          0.05255666766315699
+        ],
+        [
+          10000,
+          0.3885510653723031
+        ],
+        [
+          20000,
+          3.0569648382253947
+        ]
+      ],
+      "failed_sizes": [
+        50000
+      ]
+    },
+    "float64_inverse": {
+      "results": [],
+      "failed_sizes": [
+        100,
+        250,
+        500,
+        1000,
+        2500,
+        5000,
+        10000,
+        20000,
+        50000
+      ]
+    }
+  }
+}
