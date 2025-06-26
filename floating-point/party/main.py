@@ -163,11 +163,11 @@ class SMPCParty(smpc_pb2_grpc.PartyComputationServiceServicer):
 
         rand_key = f"{res_name}_rand"
         if self.party_id == 1:
-            r0 = self.generate_randomness(result.shape, config)
+            r0 = self.generate_randomness(result, config)
             result += r0
             self.party_clients[3].ReceiveFromParty(smpc_pb2.ShareDistribution(computation_id=comp_id, matrix_name=f"{rand_key}_1", share=matrix_to_proto(r0)))
         elif self.party_id == 2:
-            r1 = self.generate_randomness(result.shape, config)
+            r1 = self.generate_randomness(result, config)
             result += r1
             self.party_clients[3].ReceiveFromParty(smpc_pb2.ShareDistribution(computation_id=comp_id, matrix_name=f"{rand_key}_2", share=matrix_to_proto(r1)))
         else: # Party 3
@@ -179,12 +179,16 @@ class SMPCParty(smpc_pb2_grpc.PartyComputationServiceServicer):
             self.additive_shares[comp_id][res_name] = result
         logging.info(f"<- Finished SecureMatMulWithRandomization for '{res_name}'.")
 
-    def generate_randomness(self, shape, config):
-        noise_key = 'MINIMUM_NOISE_RANGE_VAL'
+    def generate_randomness(self, existing_share, config):
         if config.get('adaptive'):
-            scale = config.get(noise_key, 2.0) * (1 + np.random.uniform(config.get('OBFUSCATION_FACTOR_MIN', 0.1), config.get('OBFUSCATION_FACTOR_MAX', 0.5)))
-            return (np.random.rand(*shape) - 0.5) * 2 * scale
-        return np.random.uniform(-config.get(noise_key, 2.0), config.get(noise_key, 2.0), size=shape).astype(np.float64)
+            epsilon = 1e-9
+            # Compute bounds from existing share values: sc_i = (max(|s_i|, axis=0) + ε) / 3
+            maxs_share = np.max(np.abs(existing_share), axis=0) + epsilon
+            scale = maxs_share / 3.0
+            return np.random.uniform(-scale, scale, size=existing_share.shape).astype(np.float64)
+        else:
+            noise = config.get('MINIMUM_NOISE_RANGE_VAL', 2.0)
+            return np.random.uniform(-noise, noise, size=existing_share.shape).astype(np.float64)
 
     def CreateDiagonal(self, request, context):
         step_name = f"CreateDiagonal:{request.output_matrix}"

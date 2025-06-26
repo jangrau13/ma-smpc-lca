@@ -37,17 +37,28 @@ def is_invertible(matrix, tolerance=1e-10):
 
 def create_shares_float(matrix, adaptive, config):
     matrix_64 = matrix.astype(np.float64)
+    epsilon = 1e-9
     if not adaptive:
         noise = config.get('MINIMUM_NOISE_RANGE_VAL', 2.0)
         s0 = np.random.uniform(-noise, noise, size=matrix_64.shape).astype(np.float64)
         s1 = np.random.uniform(-noise, noise, size=matrix_64.shape).astype(np.float64)
     else:
-        max_vals = np.max(np.abs(matrix_64), axis=0) + 1e-9
-        obf_min, obf_max = config.get('OBFUSCATION_FACTOR_MIN', 0.1), config.get('OBFUSCATION_FACTOR_MAX', 0.5)
-        obfuscation = 1 + np.random.uniform(obf_min, obf_max, size=max_vals.shape)
-        scale = np.maximum(max_vals * obfuscation, config.get('MINIMUM_NOISE_RANGE_VAL', 2.0))
-        s0 = (np.random.rand(*matrix_64.shape) - 0.5) * 2 * scale
-        s1 = (np.random.rand(*matrix_64.shape) - 0.5) * 2 * scale
+        # Compute column-wise noise bounds: maxs = max(|s|, axis=0) + ε
+        maxs = np.max(np.abs(matrix_64), axis=0) + epsilon
+        
+        # Generate obfuscation factor within specified range
+        obf_min = config.get('OBFUSCATION_FACTOR_MIN', 0.1)
+        obf_max = config.get('OBFUSCATION_FACTOR_MAX', 0.5)
+        obfuscation = 1 + np.random.uniform(obf_min, obf_max, size=maxs.shape)
+        
+        # Compute adaptive scale ensuring minimum privacy protection
+        min_noise = config.get('MINIMUM_NOISE_RANGE_VAL', 2.0)
+        scale = np.maximum(maxs * obfuscation, min_noise)
+        
+        # Generate shares uniformly from [-scale, +scale]
+        s0 = np.random.uniform(-scale, scale, size=matrix_64.shape).astype(np.float64)
+        s1 = np.random.uniform(-scale, scale, size=matrix_64.shape).astype(np.float64)
+    
     s2 = matrix_64 - s0 - s1
     return s0, s1, s2
 
