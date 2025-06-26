@@ -30,8 +30,8 @@ ENV/
 *_pb2_grpc.py
 
 # Results and logs
-results/*.csv
-results/*.log
+*/results/*.csv
+*/results/*.log
 *.log
 
 # Docker
