@@ -8,7 +8,7 @@ import hashlib
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from flask import Flask, request, jsonify, render_template_string, send_file
+from flask import Flask, request, jsonify, render_template, send_file, Response
 from flask_cors import CORS
 import numpy as np
 import pandas as pd
@@ -78,7 +78,7 @@ class OrchestratorService(smpc_pb2_grpc.OrchestratorServiceServicer):
 
 class SMPCOrchestrator:
     def __init__(self):
-        self.app = Flask(__name__)
+        self.app = Flask(__name__, template_folder='templates')
         CORS(self.app)
         
         self.http_port = int(os.getenv('HTTP_PORT', 8080))
@@ -109,11 +109,31 @@ class SMPCOrchestrator:
     
     def setup_routes(self):
         @self.app.route('/')
-        def index(): return render_template_string(WEB_INTERFACE_HTML)
+        def index(): 
+            return render_template('index.html')
         
         @self.app.route('/api/start_computation', methods=['POST'])
         def start_computation():
-            config = request.json
+            if request.is_json:
+                config = request.get_json()
+            else:
+                form_data = request.form
+                config = {
+                    'N': int(form_data.get('N', 100)),
+                    'R': int(form_data.get('R', 100)),
+                    'A_DENSITY': float(form_data.get('A_DENSITY', 0.1)),
+                    'INTRODUCE_OUTLIERS': form_data.get('INTRODUCE_OUTLIERS', 'false').lower() == 'true',
+                    'OUTLIER_PROBABILITY': float(form_data.get('OUTLIER_PROBABILITY', 0.11)),
+                    'OUTLIER_RANGE_MIN': float(form_data.get('OUTLIER_RANGE_MIN', -5000)),
+                    'OUTLIER_RANGE_MAX': float(form_data.get('OUTLIER_RANGE_MAX', -2000)),
+                    'B_INT_RANGE_MIN': int(form_data.get('B_INT_RANGE_MIN', 100)),
+                    'B_INT_RANGE_MAX': int(form_data.get('B_INT_RANGE_MAX', 5000)),
+                    'USE_ADAPTIVE_SHARING': form_data.get('USE_ADAPTIVE_SHARING', 'true').lower() == 'true',
+                    'MINIMUM_NOISE_RANGE_VAL': float(form_data.get('MINIMUM_NOISE_RANGE_VAL', 2.0)),
+                    'OBFUSCATION_FACTOR_MIN': float(form_data.get('OBFUSCATION_FACTOR_MIN', 0.1)),
+                    'OBFUSCATION_FACTOR_MAX': float(form_data.get('OBFUSCATION_FACTOR_MAX', 0.5)),
+                }
+
             run_id = hashlib.md5(str(sorted(config.items())).encode()).hexdigest()
             
             with self.computation_lock:
@@ -139,8 +159,15 @@ class SMPCOrchestrator:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
         @self.app.route('/api/get_results', methods=['GET'])
-        def get_results(): return jsonify({'success': True, 'results': self.results_df.to_dict('records')})
-        
+        def get_results():
+            results = self.results_df.to_dict('records')
+            # Render both the table and the chart fragment in one response.
+            # htmx will place the main content in the target, and the OOB content
+            # in the element with the matching ID.
+            table_html = render_template('results_table.html', results=results)
+            chart_html = render_template('chart.html', results=results)
+            return Response(table_html + chart_html)
+
         @self.app.route('/api/download_results', methods=['GET'])
         def download_results():
             if os.path.exists(self.csv_file): return send_file(self.csv_file, as_attachment=True)
@@ -328,226 +355,6 @@ class SMPCOrchestrator:
         
         logging.info(f"Orchestrator HTTP server starting on port {self.http_port}")
         self.app.run(host='0.0.0.0', port=self.http_port, debug=False)
-
-WEB_INTERFACE_HTML = '''
-<!DOCTYPE html>
-<html>
-<head>
-    <title>SMPC Orchestrator</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
-        button:hover { background-color: #0056b3; }
-        .results { margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 4px; }
-        .error { background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-top: 10px; }
-        .success { background-color: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-top: 10px; }
-        .loading { color: #007bff; margin-top: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: #f2f2f2; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Secure Multi-Party Computation Orchestrator</h1>
-        
-        <form id="computationForm">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div>
-                    <div class="form-group">
-                        <label for="N">Matrix Dimension (N):</label>
-                        <input type="number" id="N" name="N" value="100" min="10" max="2000">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="R">Row Dimension (R):</label>
-                        <input type="number" id="R" name="R" value="100" min="10" max="2000">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="A_DENSITY">Matrix Density:</label>
-                        <input type="number" id="A_DENSITY" name="A_DENSITY" value="0.1" min="0.01" max="1.0" step="0.01">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="INTRODUCE_OUTLIERS">Introduce Outliers:</label>
-                        <select id="INTRODUCE_OUTLIERS" name="INTRODUCE_OUTLIERS">
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="OUTLIER_PROBABILITY">Outlier Probability:</label>
-                        <input type="number" id="OUTLIER_PROBABILITY" name="OUTLIER_PROBABILITY" value="0.11" min="0" max="1" step="0.01">
-                    </div>
-                </div>
-                
-                <div>
-                    <div class="form-group">
-                        <label for="OUTLIER_RANGE_MIN">Outlier Range Min:</label>
-                        <input type="number" id="OUTLIER_RANGE_MIN" name="OUTLIER_RANGE_MIN" value="-5000">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="OUTLIER_RANGE_MAX">Outlier Range Max:</label>
-                        <input type="number" id="OUTLIER_RANGE_MAX" name="OUTLIER_RANGE_MAX" value="-2000">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="B_INT_RANGE_MIN">B Matrix Range Min:</label>
-                        <input type="number" id="B_INT_RANGE_MIN" name="B_INT_RANGE_MIN" value="100">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="B_INT_RANGE_MAX">B Matrix Range Max:</label>
-                        <input type="number" id="B_INT_RANGE_MAX" name="B_INT_RANGE_MAX" value="5000">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="USE_ADAPTIVE_SHARING">Use Adaptive Sharing:</label>
-                        <select id="USE_ADAPTIVE_SHARING" name="USE_ADAPTIVE_SHARING">
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px;">
-                <div class="form-group">
-                    <label for="MINIMUM_NOISE_RANGE_VAL">Minimum Noise Range:</label>
-                    <input type="number" id="MINIMUM_NOISE_RANGE_VAL" name="MINIMUM_NOISE_RANGE_VAL" value="2" min="0.1" step="0.1">
-                </div>
-                
-                <div class="form-group">
-                    <label for="OBFUSCATION_FACTOR_MIN">Obfuscation Factor Min:</label>
-                    <input type="number" id="OBFUSCATION_FACTOR_MIN" name="OBFUSCATION_FACTOR_MIN" value="0.1" min="0.01" step="0.01">
-                </div>
-                
-                <div class="form-group">
-                    <label for="OBFUSCATION_FACTOR_MAX">Obfuscation Factor Max:</label>
-                    <input type="number" id="OBFUSCATION_FACTOR_MAX" name="OBFUSCATION_FACTOR_MAX" value="0.5" min="0.01" step="0.01">
-                </div>
-            </div>
-            
-            <button type="submit">Start Computation</button>
-            <button type="button" onclick="loadResults()">Load Results</button>
-            <button type="button" onclick="downloadResults()">Download Results</button>
-        </form>
-        
-        <div id="status"></div>
-        <div id="results" class="results" style="display: none;"></div>
-    </div>
-
-    <script>
-        document.getElementById('computationForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const formData = new FormData(e.target);
-            const config = {};
-            
-            for (let [key, value] of formData.entries()) {
-                if (key.includes('OUTLIERS') || key.includes('ADAPTIVE')) {
-                    config[key] = value === 'true';
-                } else {
-                    config[key] = parseFloat(value);
-                }
-            }
-            
-            const statusDiv = document.getElementById('status');
-            statusDiv.innerHTML = '<div class="loading">Starting computation...</div>';
-            
-            try {
-                const response = await fetch('/api/start_computation', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(config)
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok) {
-                    statusDiv.innerHTML = `<div class="success">${result.message} Check server logs for progress.</div>`;
-                } else {
-                    statusDiv.innerHTML = `<div class="error">Error ${response.status}: ${result.message || result.error}</div>`;
-                }
-            } catch (error) {
-                statusDiv.innerHTML = `<div class="error">Network error: ${error.message}</div>`;
-            }
-        });
-        
-        function displayResults(metrics) {
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.style.display = 'block';
-            
-            let html = '<h3>Computation Results</h3><table>';
-            html += '<tr><th>Metric</th><th>Value</th></tr>';
-            
-            for (const [key, value] of Object.entries(metrics)) {
-                html += `<tr><td>${key}</td><td>${typeof value === 'number' ? value.toFixed(6) : value}</td></tr>`;
-            }
-            
-            html += '</table>';
-            resultsDiv.innerHTML = html;
-        }
-        
-        async function loadResults() {
-            try {
-                const response = await fetch('/api/get_results');
-                const result = await response.json();
-                
-                if (result.success && result.results.length > 0) {
-                    displayAllResults(result.results);
-                } else {
-                    document.getElementById('status').innerHTML = '<div>No results found</div>';
-                }
-            } catch (error) {
-                document.getElementById('status').innerHTML = `<div class="error">Error loading results: ${error.message}</div>`;
-            }
-        }
-        
-        function displayAllResults(results) {
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.style.display = 'block';
-            
-            let html = '<h3>All Computation Results</h3>';
-            html += `<p>Total experiments: ${results.length}</p>`;
-            html += '<table><tr>';
-            
-            const keys = Object.keys(results[0]);
-            keys.forEach(key => html += `<th>${key}</th>`);
-            html += '</tr>';
-            
-            results.forEach(result => {
-                html += '<tr>';
-                keys.forEach(key => {
-                    let val = result[key];
-                    if(typeof val === 'number' && !Number.isInteger(val)) {
-                        val = val.toFixed(4);
-                    }
-                    html += `<td>${val}</td>`;
-                });
-                html += '</tr>';
-            });
-            
-            html += '</table>';
-            resultsDiv.innerHTML = html;
-        }
-        
-        async function downloadResults() {
-            window.location.href = '/api/download_results';
-        }
-    </script>
-</body>
-</html>
-'''
 
 if __name__ == '__main__':
     orchestrator = SMPCOrchestrator()

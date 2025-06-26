@@ -1,0 +1,107 @@
+{# This entire div will be swapped "out of band" into the #chart-container in index.html #}
+<div id="chart-container" hx-swap-oob="true">
+    {% if results %}
+        <h3>Results Visualization</h3>
+        
+        {# Chart styles #}
+        <style>
+            .chart-wrapper {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                border: 1px solid #dee2e6;
+                padding: 20px;
+                border-radius: 8px;
+                background: #fff;
+            }
+            .chart-grid {
+                display: grid;
+                grid-template-columns: repeat({{ results|length }}, 1fr);
+                gap: 10px;
+                height: 250px;
+                border-left: 2px solid #ccc;
+                border-bottom: 2px solid #ccc;
+                padding: 10px 0 0 10px;
+                position: relative;
+            }
+            .chart-bar-container {
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-end;
+                align-items: center;
+                text-align: center;
+            }
+            .chart-bar {
+                width: 70%;
+                background-color: #007bff;
+                border-radius: 4px 4px 0 0;
+                transition: height 0.3s ease-out;
+            }
+            .chart-bar.snr {
+                background-color: #ff6384;
+            }
+            .chart-label {
+                font-size: 12px;
+                margin-top: 5px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .chart-legend {
+                display: flex;
+                justify-content: center;
+                gap: 20px;
+                margin-top: 15px;
+            }
+            .legend-item {
+                display: flex;
+                align-items: center;
+                font-size: 14px;
+            }
+            .legend-color-box {
+                width: 15px;
+                height: 15px;
+                margin-right: 8px;
+                border-radius: 3px;
+            }
+        </style>
+        
+        {# Find max values for scaling the bars appropriately #}
+        {% set max_error = results | map(attribute='float_mean_abs_error') | max %}
+        {% set max_snr = results | map(attribute='float_snr_db') | max %}
+
+        <div class="chart-wrapper">
+            <h4>Mean Absolute Error</h4>
+            <div class="chart-grid">
+                {% for result in results %}
+                <div class="chart-bar-container">
+                    {# Calculate bar height as a percentage of the max value. Add a minimum height for visibility. #}
+                    {% set bar_height = (result.float_mean_abs_error / (max_error + 1e-9)) * 100 %}
+                    <div class="chart-bar" style="height: {{ bar_height }}%; min-height: 2px;" title="Error: {{ '%.4f'|format(result.float_mean_abs_error) }}"></div>
+                    <div class="chart-label" title="{{ result.run_id }}">{{ result.run_id[:8] }}</div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <h4 style="margin-top: 20px;">SNR (dB)</h4>
+            <div class="chart-grid">
+                {% for result in results %}
+                <div class="chart-bar-container">
+                    {% set bar_height = (result.float_snr_db / (max_snr + 1e-9)) * 100 %}
+                    <div class="chart-bar snr" style="height: {{ bar_height }}%; min-height: 2px;" title="SNR: {{ '%.2f'|format(result.float_snr_db) }} dB"></div>
+                    <div class="chart-label" title="{{ result.run_id }}">{{ result.run_id[:8] }}</div>
+                </div>
+                {% endfor %}
+            </div>
+
+             <div class="chart-legend">
+                <div class="legend-item">
+                    <div class="legend-color-box" style="background-color: #007bff;"></div>
+                    Mean Absolute Error
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color-box" style="background-color: #ff6384;"></div>
+                    SNR (dB)
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>SMPC Orchestrator</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --background-color: #f8f9fa;
+            --container-bg: #ffffff;
+            --text-color: #333;
+            --border-color: #dee2e6;
+            --shadow-color: rgba(0,0,0,0.1);
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; 
+            background-color: var(--background-color); 
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 20px auto; 
+            background: var(--container-bg); 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 6px var(--shadow-color);
+        }
+        h1 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .form-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); 
+            gap: 20px; 
+        }
+        .form-group { margin-bottom: 0; }
+        label { 
+            display: block; 
+            margin-bottom: 5px; 
+            font-weight: bold; 
+            font-size: 0.9em;
+        }
+        input, select { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid var(--border-color); 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        .button-group { 
+            margin-top: 25px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        button, .button-like { 
+            background-color: var(--primary-color); 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 1em;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            transition: background-color 0.2s;
+        }
+        button:hover, .button-like:hover { 
+            background-color: var(--primary-hover); 
+        }
+        .results-container { 
+            margin-top: 20px; 
+            overflow-x: auto; /* Allow horizontal scrolling for table */
+        }
+        #status { margin-top: 15px; }
+        .error { background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; padding: 10px; border-radius: 4px; }
+        .htmx-indicator { display: none; margin-left: 8px; }
+        .htmx-request .htmx-indicator { display: inline; }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 15px;
+            background-color: #fdfdff; 
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        th, td { 
+            padding: 12px 15px; 
+            text-align: left; 
+            border-bottom: 1px solid var(--border-color); 
+            white-space: nowrap;
+        }
+        th { 
+            background-color: var(--background-color);
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                padding: 15px;
+            }
+            .form-grid {
+                grid-template-columns: 1fr; /* Stack form elements */
+            }
+            .button-group {
+                flex-direction: column; /* Stack buttons */
+            }
+            button, .button-like {
+                width: 100%;
+            }
+            h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SMPC Orchestrator</h1>
+        
+        <form id="computationForm" hx-post="/api/start_computation" hx-ext="json-enc" hx-target="#status" hx-indicator="#indicator">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="N">Matrix Dimension (N):</label>
+                    <input type="number" id="N" name="N" value="100" min="10" max="2000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="R">Row Dimension (R):</label>
+                    <input type="number" id="R" name="R" value="100" min="10" max="2000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="A_DENSITY">Matrix Density:</label>
+                    <input type="number" id="A_DENSITY" name="A_DENSITY" value="0.1" min="0.01" max="1.0" step="0.01">
+                </div>
+                
+                <div class="form-group">
+                    <label for="INTRODUCE_OUTLIERS">Introduce Outliers:</label>
+                    <select id="INTRODUCE_OUTLIERS" name="INTRODUCE_OUTLIERS">
+                        <option value="true">Yes</option>
+                        <option value="false" selected>No</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="OUTLIER_PROBABILITY">Outlier Probability:</label>
+                    <input type="number" id="OUTLIER_PROBABILITY" name="OUTLIER_PROBABILITY" value="0.11" min="0" max="1" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="OUTLIER_RANGE_MIN">Outlier Range Min:</label>
+                    <input type="number" id="OUTLIER_RANGE_MIN" name="OUTLIER_RANGE_MIN" value="-5000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="OUTLIER_RANGE_MAX">Outlier Range Max:</label>
+                    <input type="number" id="OUTLIER_RANGE_MAX" name="OUTLIER_RANGE_MAX" value="-2000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="B_INT_RANGE_MIN">B Matrix Range Min:</label>
+                    <input type="number" id="B_INT_RANGE_MIN" name="B_INT_RANGE_MIN" value="100">
+                </div>
+                
+                <div class="form-group">
+                    <label for="B_INT_RANGE_MAX">B Matrix Range Max:</label>
+                    <input type="number" id="B_INT_RANGE_MAX" name="B_INT_RANGE_MAX" value="5000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="USE_ADAPTIVE_SHARING">Use Adaptive Sharing:</label>
+                    <select id="USE_ADAPTIVE_SHARING" name="USE_ADAPTIVE_SHARING">
+                        <option value="true" selected>Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="MINIMUM_NOISE_RANGE_VAL">Minimum Noise Range:</label>
+                    <input type="number" id="MINIMUM_NOISE_RANGE_VAL" name="MINIMUM_NOISE_RANGE_VAL" value="2" min="0.1" step="0.1">
+                </div>
+                
+                <div class="form-group">
+                    <label for="OBFUSCATION_FACTOR_MIN">Obfuscation Factor Min:</label>
+                    <input type="number" id="OBFUSCATION_FACTOR_MIN" name="OBFUSCATION_FACTOR_MIN" value="0.1" min="0.01" step="0.01">
+                </div>
+                
+                <div class="form-group">
+                    <label for="OBFUSCATION_FACTOR_MAX">Obfuscation Factor Max:</label>
+                    <input type="number" id="OBFUSCATION_FACTOR_MAX" name="OBFUSCATION_FACTOR_MAX" value="0.5" min="0.01" step="0.01">
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button type="submit">Start Computation <span id="indicator" class="htmx-indicator">...</span></button>
+                <button type="button" hx-get="/api/get_results" hx-target="#results-container" hx-trigger="click" hx-indicator="#indicator">Load Results</button>
+                <a href="/api/download_results" class="button-like">Download Results</a>
+            </div>
+        </form>
+        
+        <div id="status"></div>
+
+        <!-- The containers for our server-rendered fragments -->
+        <div id="results-container" class="results-container">
+            <!-- The results table will be loaded here by htmx -->
+        </div>
+        <div id="chart-container" class="results-container">
+            <!-- The chart will be loaded here by htmx (using OOB swap) -->
+        </div>
+    </div>
+</body>
+</html>
