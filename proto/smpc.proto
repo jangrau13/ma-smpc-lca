@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package smpc;
+
+// Matrix representation for efficient transmission
+message Matrix {
+  repeated double data = 1;
+  int32 rows = 2;
+  int32 cols = 3;
+}
+
+// Configuration for the computation
+message ComputationConfig {
+  int32 n = 1;
+  int32 r = 2;
+  bool introduce_outliers = 3;
+  double outlier_probability = 4;
+  double outlier_range_min = 5;
+  double outlier_range_max = 6;
+  double b_int_range_min = 7;
+  double b_int_range_max = 8;
+  int32 precision = 9;
+  double obfuscation_factor_min = 10;
+  double obfuscation_factor_max = 11;
+  bool use_adaptive_sharing = 12;
+  double minimum_noise_range_val = 13;
+  double a_density = 14;
+  string run_id = 15;
+}
+
+// Share distribution message
+message ShareDistribution {
+  string computation_id = 1;
+  string matrix_name = 2;
+  Matrix share = 3;
+  int32 share_index = 4;
+}
+
+// Computation step request
+message ComputationStep {
+  string computation_id = 1;
+  string operation = 2;
+  repeated string input_matrices = 3;
+  string output_matrix = 4;
+  map<string, string> parameters = 5;
+}
+
+// Matrix multiplication request between parties  
+message MatMulRequest {
+  string computation_id = 1;
+  string matrix_a_name = 2;
+  string matrix_b_name = 3;
+  string result_name = 4;
+  map<string, string> parameters = 5;  // For randomization config
+}
+
+// Share reveal request
+message RevealRequest {
+  string computation_id = 1;
+  string matrix_name = 2;
+}
+
+// Generic response
+message Response {
+  bool success = 1;
+  string message = 2;
+  Matrix result = 3;
+}
+
+// Computation results
+message ComputationResult {
+  string computation_id = 1;
+  map<string, double> metrics = 2;
+  double computation_time = 3;
+  bool success = 4;
+  string error_message = 5;
+}
+
+// Party status
+message PartyStatus {
+  int32 party_id = 1;
+  bool ready = 2;
+  string status_message = 3;
+}
+
+// Services - Only for matrix streaming operations
+service MatrixStreamingService {
+  // Stream shares from orchestrator to parties
+  rpc StreamShares(stream ShareDistribution) returns (Response);
+  
+  // Stream matrix results between parties
+  rpc StreamMatrixResults(stream ShareDistribution) returns (Response);
+  
+  // Reveal shares back to orchestrator
+  rpc StreamRevealedShares(stream ShareDistribution) returns (Response);
+}
+
+service PartyComputationService {
+  // Receive matrix shares from orchestrator
+  rpc ReceiveShares(ShareDistribution) returns (Response);
+  
+  // Perform secure matrix multiplication
+  rpc SecureMatMul(MatMulRequest) returns (Response);
+  
+  // Perform secure matrix multiplication with automatic randomization
+  rpc SecureMatMulWithRandomization(MatMulRequest) returns (Response);
+  
+  // Create diagonal matrix from vector shares
+  rpc CreateDiagonal(ComputationStep) returns (Response);
+  
+  // Send shares to other parties
+  rpc SendToParty(ShareDistribution) returns (Response);
+  
+  // Receive shares from other parties  
+  rpc ReceiveFromParty(ShareDistribution) returns (Response);
+  
+  // Return final shares to orchestrator
+  rpc ReturnShares(RevealRequest) returns (Response);
+}

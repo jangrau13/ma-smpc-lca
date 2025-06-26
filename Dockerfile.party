@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy proto files and generate gRPC code
+COPY proto/ ./proto/
+RUN python -m grpc_tools.protoc -I./proto --python_out=. --grpc_python_out=. proto/smpc.proto
+
+# Copy application code
+COPY party/ ./party/
+COPY common/ ./common/
+
+# Expose port
+EXPOSE 50052
+
+# Run party
+CMD ["python", "-m", "party.main"]
