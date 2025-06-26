@@ -21,9 +21,22 @@ case "$1" in
         docker-compose down
         docker-compose up -d
         ;;
+    "rebuild")
+        echo "Rebuilding SMPC system from scratch..."
+        echo "Stopping containers..."
+        docker-compose down
+        echo "Removing existing containers and images..."
+        docker-compose down --rmi all --volumes --remove-orphans
+        echo "Building fresh images..."
+        docker-compose build --no-cache
+        echo "Starting system with new build..."
+        docker-compose up -d
+        echo "✅ Rebuild complete! Web interface available at: http://localhost:8080"
+        ;;
     "logs")
         if [ -z "$2" ]; then
-            docker-compose logs -f
+            echo "Showing logs for all parties (orchestrator, party1, party2, party3)..."
+            docker-compose logs -f orchestrator party1 party2 party3
         else
             docker-compose logs -f "$2"
         fi
@@ -51,14 +64,15 @@ case "$1" in
         ;;
     *)
         echo "SMPC System Management"
-        echo "Usage: $0 {build|start|stop|restart|logs|status|clean|shell|validate}"
+        echo "Usage: $0 {build|start|stop|restart|rebuild|logs|status|clean|shell|validate}"
         echo ""
         echo "Commands:"
         echo "  build     - Build the Docker images"
         echo "  start     - Start the system in background"
         echo "  stop      - Stop the system"
         echo "  restart   - Restart the system"
-        echo "  logs      - Show logs (add service name for specific logs)"
+        echo "  rebuild   - Complete rebuild with fresh images and containers"
+        echo "  logs      - Show logs for all parties (add service name for specific logs)"
         echo "  status    - Show system status"
         echo "  clean     - Clean up containers and images"
         echo "  shell     - Access container shell (specify service)"
@@ -67,5 +81,6 @@ case "$1" in
         echo "Examples:"
         echo "  $0 logs orchestrator"
         echo "  $0 shell party1"
+        echo "  $0 rebuild"
         ;;
 esac

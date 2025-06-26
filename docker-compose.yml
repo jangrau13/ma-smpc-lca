@@ -13,6 +13,7 @@ services:
       - ORCHESTRATOR_HOST=0.0.0.0
       - HTTP_PORT=8080
       - GRPC_PORT=50051
+      - PYTHONUNBUFFERED=1
     volumes:
       - ./results:/app/results
     networks:
@@ -33,6 +34,7 @@ services:
       - GRPC_PORT=50052
       - ORCHESTRATOR_GRPC_ADDRESS=orchestrator:50051
       - OTHER_PARTIES_GRPC=party2:50053,party3:50054
+      - PYTHONUNBUFFERED=1
     networks:
       - smpc_network
 
@@ -47,6 +49,7 @@ services:
       - GRPC_PORT=50053
       - ORCHESTRATOR_GRPC_ADDRESS=orchestrator:50051
       - OTHER_PARTIES_GRPC=party1:50052,party3:50054
+      - PYTHONUNBUFFERED=1
     networks:
       - smpc_network
 
@@ -61,6 +64,7 @@ services:
       - GRPC_PORT=50054
       - ORCHESTRATOR_GRPC_ADDRESS=orchestrator:50051
       - OTHER_PARTIES_GRPC=party1:50052,party2:50053
+      - PYTHONUNBUFFERED=1
     networks:
       - smpc_network
 
