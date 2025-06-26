@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package smpc;
+
+// The party computation service definition.
+// These are the operations that the orchestrator can trigger on the parties.
+service PartyComputationService {
+  rpc ReceiveShares(ShareDistribution) returns (Response);
+  rpc SecureMatMul(MatMulRequest) returns (Response);
+  rpc SecureMatMulWithRandomization(MatMulRequest) returns (Response);
+  rpc CreateDiagonal(ComputationStep) returns (Response);
+  rpc ReturnShares(RevealRequest) returns (Response);
+  rpc ReceiveFromParty(ShareDistribution) returns (Response);
+}
+
+// The orchestrator service definition.
+// This new service allows parties to report back to the orchestrator.
+service OrchestratorService {
+  // RPC for a party to notify the orchestrator that it has finished a computation step.
+  rpc ComputationFinished(ComputationFinishedRequest) returns (Response); // <-- CORRECTED THIS LINE
+}
+
+// Messages for party-to-orchestrator communication
+message ComputationFinishedRequest {
+  string computation_id = 1;
+  int32 party_id = 2;
+  string step_name = 3; // e.g., "SecureMatMul:AT"
+  bool success = 4;
+  string message = 5; // Optional error message
+}
+
+// General purpose messages
+message Matrix {
+  repeated int64 data = 1;
+  int32 rows = 2;
+  int32 cols = 3;
+}
+
+message ShareDistribution {
+  string computation_id = 1;
+  string matrix_name = 2;
+  Matrix share = 3;
+}
+
+message MatMulRequest {
+  string computation_id = 1;
+  string matrix_a_name = 2;
+  string matrix_b_name = 3;
+  string result_name = 4;
+  map<string, string> parameters = 5;
+}
+
+message ComputationStep {
+  string computation_id = 1;
+  string operation = 2;
+  repeated string input_matrices = 3;
+  string output_matrix = 4;
+}
+
+message RevealRequest {
+  string computation_id = 1;
+  string matrix_name = 2;
+}
+
+message Response {
+  bool success = 1;
+  string message = 2;
+  Matrix result = 3;
+}

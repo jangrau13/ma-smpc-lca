@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.orchestrator
+    ports:
+      - "8080:8080"  # HTTP Web interface & API
+      - "50051:50051"  # gRPC for matrix streaming
+    environment:
+      - PARTY_GRPC_ADDRESSES=party1:50052,party2:50053,party3:50054
+      - ORCHESTRATOR_HOST=0.0.0.0
+      - HTTP_PORT=8080
+      - GRPC_PORT=50051
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./results:/app/results
+    networks:
+      - smpc_network
+    depends_on:
+      - party1
+      - party2
+      - party3
+
+  party1:
+    build:
+      context: .
+      dockerfile: Dockerfile.party
+    ports:
+      - "50052:50052"  # gRPC only
+    environment:
+      - PARTY_ID=1
+      - GRPC_PORT=50052
+      - ORCHESTRATOR_GRPC_ADDRESS=orchestrator:50051
+      - OTHER_PARTIES_GRPC=party2:50053,party3:50054
+      - PYTHONUNBUFFERED=1
+    networks:
+      - smpc_network
+
+  party2:
+    build:
+      context: .
+      dockerfile: Dockerfile.party
+    ports:
+      - "50053:50053"  # gRPC only
+    environment:
+      - PARTY_ID=2
+      - GRPC_PORT=50053
+      - ORCHESTRATOR_GRPC_ADDRESS=orchestrator:50051
+      - OTHER_PARTIES_GRPC=party1:50052,party3:50054
+      - PYTHONUNBUFFERED=1
+    networks:
+      - smpc_network
+
+  party3:
+    build:
+      context: .
+      dockerfile: Dockerfile.party
+    ports:
+      - "50054:50054"  # gRPC only
+    environment:
+      - PARTY_ID=3
+      - GRPC_PORT=50054
+      - ORCHESTRATOR_GRPC_ADDRESS=orchestrator:50051
+      - OTHER_PARTIES_GRPC=party1:50052,party2:50053
+      - PYTHONUNBUFFERED=1
+    networks:
+      - smpc_network
+
+networks:
+  smpc_network:
+    driver: bridge

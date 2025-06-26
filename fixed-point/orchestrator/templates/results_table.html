@@ -1,0 +1,42 @@
+{% if results %}
+    <h3>All Computation Results</h3>
+    <p>Total experiments: {{ results|length }}</p>
+    <div style="overflow-x:auto;">
+    <table>
+        <thead>
+            <tr>
+                <th>Run ID</th>
+                <th>Time (s)</th>
+                <th>Max Abs Error</th>
+                <th>Mean Abs Error</th>
+                <th>Max Rel Error</th>
+                <th>Mean Rel Error</th>
+                <th>SNR (dB)</th>
+                <th>N</th>
+                <th>R</th>
+                <th>Density</th>
+                <th>Outliers</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for result in results %}
+                <tr>
+                    <td title="{{ result.run_id }}">{{ result.run_id[:8] }}...</td>
+                    <td>{{ "%.2f"|format(result.float_point_time_s) }}</td>
+                    <td>{{ "%.2e"|format(result.float_max_abs_error) }}</td>
+                    <td>{{ "%.2e"|format(result.float_mean_abs_error) }}</td>
+                    <td>{{ "%.2e"|format(result.float_max_rel_error) }}</td>
+                    <td>{{ "%.2e"|format(result.float_mean_rel_error) }}</td>
+                    <td>{{ "%.2e"|format(result.float_snr_db) }}</td>
+                    <td>{{ result.N }}</td>
+                    <td>{{ result.R }}</td>
+                    <td>{{ result.A_DENSITY }}</td>
+                    <td>{{ 'Yes' if result.INTRODUCE_OUTLIERS else 'No' }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+{% else %}
+    <p>No results found. Run a computation to see results here.</p>
+{% endif %}

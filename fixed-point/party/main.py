@@ -16,11 +16,11 @@ import smpc_pb2_grpc
 
 def matrix_to_proto(matrix):
     if matrix is None: return smpc_pb2.Matrix(data=[], rows=0, cols=0)
-    return smpc_pb2.Matrix(data=matrix.flatten().astype(np.float64).tolist(), rows=matrix.shape[0], cols=matrix.shape[1])
+    return smpc_pb2.Matrix(data=matrix.flatten().astype(np.int64).tolist(), rows=matrix.shape[0], cols=matrix.shape[1])
 
 def proto_to_matrix(proto_matrix):
     if not proto_matrix.rows or not proto_matrix.cols: return None
-    return np.array(proto_matrix.data, dtype=np.float64).reshape(proto_matrix.rows, proto_matrix.cols)
+    return np.array(proto_matrix.data, dtype=np.int64).reshape(proto_matrix.rows, proto_matrix.cols)
 
 class SMPCParty(smpc_pb2_grpc.PartyComputationServiceServicer):
     def __init__(self, party_id):
@@ -133,9 +133,13 @@ class SMPCParty(smpc_pb2_grpc.PartyComputationServiceServicer):
         received_share_A = self.wait_for_share(comp_id, f"{mat_a}_{receive_from_party_id}")
         received_share_B = self.wait_for_share(comp_id, f"{mat_b}_{receive_from_party_id}")
         
-        logging.info(f"All shares received for '{res_name}'. Computing result.")
-        result = my_share_A @ my_share_B + my_share_A @ received_share_B + received_share_A @ my_share_B
+        #log datatypes
+        logging.info(f"Received shares for '{mat_a}' & '{mat_b}' from Party {receive_from_party_id}.")
+        logging.info(f"Share A type: {received_share_A.dtype}, Share B type: {received_share_B.dtype}")
+        logging.info(f"My share A type: {my_share_A.dtype}, My share B type: {my_share_B.dtype}")
         
+        logging.info(f"All shares received for '{res_name}'. Computing result.")
+        result = (my_share_A @ my_share_B + my_share_A @ received_share_B + received_share_A @ my_share_B).astype(np.int64)
         with self.state_lock:
             self.additive_shares[comp_id][res_name] = result
         logging.info(f"<- Finished SecureMatMul for '{res_name}'.")
@@ -156,35 +160,28 @@ class SMPCParty(smpc_pb2_grpc.PartyComputationServiceServicer):
             result = self.additive_shares[comp_id][temp_result_name]
 
         logging.info(f"Randomizing share for '{res_name}'.")
-        config = {k: v for k, v in request.parameters.items()}
-        config['adaptive'] = config.get('USE_ADAPTIVE_SHARING', 'True').lower() == 'true'
-        for k in ['MINIMUM_NOISE_RANGE_VAL', 'OBFUSCATION_FACTOR_MIN', 'OBFUSCATION_FACTOR_MAX']:
-             if k in config: config[k] = float(config[k])
-
+        
         rand_key = f"{res_name}_rand"
         if self.party_id == 1:
-            r0 = self.generate_randomness(result.shape, config)
-            result += r0
+            r0 = self.generate_randomness(result.shape)
+            result = (result.astype(np.uint64) - r0.astype(np.uint64)).astype(np.int64)
             self.party_clients[3].ReceiveFromParty(smpc_pb2.ShareDistribution(computation_id=comp_id, matrix_name=f"{rand_key}_1", share=matrix_to_proto(r0)))
         elif self.party_id == 2:
-            r1 = self.generate_randomness(result.shape, config)
-            result += r1
+            r1 = self.generate_randomness(result.shape)
+            result = (result.astype(np.uint64) - r1.astype(np.uint64)).astype(np.int64)
             self.party_clients[3].ReceiveFromParty(smpc_pb2.ShareDistribution(computation_id=comp_id, matrix_name=f"{rand_key}_2", share=matrix_to_proto(r1)))
         else: # Party 3
             r0 = self.wait_for_share(comp_id, f"{rand_key}_1")
             r1 = self.wait_for_share(comp_id, f"{rand_key}_2")
-            result -= (r0 + r1)
+            result = (result.astype(np.uint64) + r0.astype(np.uint64) + r1.astype(np.uint64)).astype(np.int64)
 
         with self.state_lock:
             self.additive_shares[comp_id][res_name] = result
         logging.info(f"<- Finished SecureMatMulWithRandomization for '{res_name}'.")
 
-    def generate_randomness(self, shape, config):
-        noise_key = 'MINIMUM_NOISE_RANGE_VAL'
-        if config.get('adaptive'):
-            scale = config.get(noise_key, 2.0) * (1 + np.random.uniform(config.get('OBFUSCATION_FACTOR_MIN', 0.1), config.get('OBFUSCATION_FACTOR_MAX', 0.5)))
-            return (np.random.rand(*shape) - 0.5) * 2 * scale
-        return np.random.uniform(-config.get(noise_key, 2.0), config.get(noise_key, 2.0), size=shape).astype(np.float64)
+    def generate_randomness(self, shape):
+        """Generate random int64 values for fixed-point randomization."""
+        return np.random.randint(0, 2**62, size=shape, dtype=np.uint64)
 
     def CreateDiagonal(self, request, context):
         step_name = f"CreateDiagonal:{request.output_matrix}"
