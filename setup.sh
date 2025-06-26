@@ -120,7 +120,7 @@ case "$1" in
         echo "Removing existing containers and images..."
         docker-compose down --rmi all --volumes --remove-orphans
         echo "Building fresh images..."
-        docker-compose build --no-cache
+        docker-compose build
         echo "Starting system with new build..."
         docker-compose up -d
         echo "✅ Rebuild complete! Web interface available at: http://localhost:8080"
