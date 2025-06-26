@@ -13,45 +13,36 @@ This system implements a distributed secure multi-party computation platform for
 ## Features
 
 - Interactive web interface for parameter configuration
-- Secure 3-party computation using additive secret sharing
-- Matrix operations: multiplication, inversion, diagonal creation
-- Adaptive noise scaling and share randomization
-- Comprehensive error and leakage analysis
-- Real-time results visualization and CSV export
 
 ## Quick Start
 
 ### Prerequisites
 
 - Docker and Docker Compose
-- At least 4GB RAM (for larger matrix computations)
+- At least 8GB RAM (for larger matrix computations)
 
 ### Setup and Run
 
-1. **Clone or create the project structure:**
+1. **Setup the system:**
 ```bash
-mkdir smpc-system && cd smpc-system
+chmod +x setup.sh
+./setup.sh
 ```
 
-2. **Create the directory structure:**
+2. **Build the Container:**
 ```bash
-mkdir -p orchestrator party common proto results
+./manage.sh rebuild
 ```
 
-3. **Copy all the provided files to their respective directories:**
-   - `docker-compose.yml` (root)
-   - `Dockerfile.orchestrator` (root)
-   - `Dockerfile.party` (root)
-   - `requirements.txt` (root)
-   - `proto/smpc.proto`
-   - `orchestrator/main.py`
-   - `party/main.py`
-   - `common/utils.py`
-   - `common/__init__.py` (empty file)
 
-4. **Build and start the system:**
+3. **Start the system:**
 ```bash
-docker-compose up --build
+./manage.sh start
+```
+
+4. **Stop the system:**
+```bash
+./manage.sh stop
 ```
 
 5. **Access the web interface:**
@@ -81,13 +72,11 @@ The orchestrator provides an intuitive web interface for:
 
 2. **Computation Management:**
    - Start new computations
-   - Monitor progress
-   - View real-time results
+   - View results
 
 3. **Results Analysis:**
    - Error metrics (absolute, relative, SNR)
    - Performance measurements
-   - Privacy leakage analysis
    - Export to CSV
 
 ### API Endpoints
@@ -96,17 +85,6 @@ The orchestrator provides an intuitive web interface for:
 - `GET /api/get_results` - Retrieve all results
 - `GET /api/download_results` - Download results as CSV
 
-### Configuration Parameters
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `N` | Matrix dimension | 100 |
-| `R` | Row dimension for secret matrix B | 100 |
-| `A_DENSITY` | Sparsity of matrix A | 0.1 |
-| `INTRODUCE_OUTLIERS` | Add outliers to matrix A | true |
-| `OUTLIER_PROBABILITY` | Probability of outlier elements | 0.11 |
-| `USE_ADAPTIVE_SHARING` | Use adaptive noise scaling | true |
-| `MINIMUM_NOISE_RANGE_VAL` | Base noise level | 2.0 |
 
 ## Security Protocol
 
@@ -150,19 +128,6 @@ The system implements a proper 3-party secure computation protocol with replicat
    - Each party sends **only their share** to orchestrator
    - Orchestrator reconstructs: `result = share1 + share2 + share3`
 
-### Security Guarantees
-
-- **No party ever sees more than 2 out of 3 shares**
-- **Parties cannot reconstruct secrets during computation**
-- **Communication is minimal and only between adjacent parties**
-- **Randomization prevents correlation attacks across operations**
-
-### Supported Operations
-
-- **Secure Matrix Multiplication**: Using Beaver triplet strategy
-- **Share Randomization**: Preserve secrets while refreshing shares
-- **Diagonal Matrix Creation**: From vector shares
-- **Matrix Inversion**: Public operation on reconstructed matrices
 
 ## Development
 
@@ -171,88 +136,11 @@ The system implements a proper 3-party secure computation protocol with replicat
 1. Define protobuf messages in `proto/smpc.proto`
 2. Implement orchestrator logic in `orchestrator/main.py`
 3. Add party computation in `party/main.py`
-4. Update utility functions in `common/utils.py`
 
-### Debugging
-
-- View orchestrator logs: `docker-compose logs orchestrator`
-- View party logs: `docker-compose logs party1` (or party2, party3)
-- Access containers: `docker-compose exec orchestrator bash`
-
-### Performance Tuning
-
-- Adjust matrix dimensions based on available memory
-- Modify noise parameters for security/accuracy trade-offs
-- Scale party count (requires protocol modifications)
-
-## Research Applications
-
-This system is designed for academic research in:
-
-- Secure multi-party computation protocols
-- Privacy-preserving machine learning
-- Cryptographic protocol analysis
-- Distributed matrix computations
-
-### Metrics and Analysis
-
-The system provides comprehensive metrics for research evaluation:
-
-- **Accuracy**: Multiple error measures (L2 norm, max/mean absolute/relative errors)
-- **Performance**: Computation times, memory usage
-- **Security**: Privacy leakage analysis via confusion matrices
-- **Scalability**: Support for various matrix sizes and configurations
-
-### Citation
-
-If you use this system in your research, please cite:
-
-```bibtex
-@software{smpc_docker_system,
-  title={Distributed Secure Multi-Party Computation System},
-  author={[Your Name]},
-  year={2025},
-  url={[Repository URL]}
-}
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Port conflicts**: Ensure ports 8080, 50051-50054 are available
-2. **Memory issues**: Reduce matrix dimensions for large computations
-3. **gRPC connection errors**: Check Docker network connectivity
-4. **Build failures**: Verify all files are in correct directories
-
-### Logs and Debugging
-
+### Any Error? See here
 ```bash
-# View all logs
-docker-compose logs
-
-# Follow logs in real-time
-docker-compose logs -f
-
-# View specific service logs
-docker-compose logs orchestrator
-docker-compose logs party1
-
-# Access container shell
-docker-compose exec orchestrator bash
+./manage.sh logs
 ```
 
-## License
 
-This project is released under the MIT License for academic and research use.
 
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Submit a pull request with detailed description
-
-For major changes, please open an issue first to discuss proposed modifications.
