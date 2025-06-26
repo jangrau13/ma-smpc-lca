@@ -1,0 +1,73 @@
+{% if matrices %}
+    <h3>Latest Computation Matrix Comparison</h3>
+    
+    <div>
+        <div class="matrix-container" style="margin-bottom: 2rem;">
+            <h4>Matrix A (5x5 excerpt)</h4>
+            <table>
+                {% for row in matrices.A[:5] %}
+                <tr>
+                    {% for item in row[:5] %} <td>{{ "%.4e"|format(item) }}</td> {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="matrix-container" style="margin-bottom: 2rem;">
+            <h4>Matrix T (5x5 excerpt)</h4>
+            <table>
+                {% for row in matrices.T[:5] %}
+                <tr>
+                    {% for item in row[:5] %} <td>{{ "%.4e"|format(item) }}</td> {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="matrix-container" style="margin-bottom: 2rem;">
+            <h4>Matrix B (5x5 excerpt)</h4>
+            <table>
+                {% for row in matrices.B[:5] %}
+                <tr>
+                    {% for item in row[:5] %} <td>{{ "%.4e"|format(item) }}</td> {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="matrix-container" style="margin-bottom: 2rem;">
+            <h4>Vector f (first 5)</h4>
+            <table>
+                {% for item in matrices.f[:5] %}
+                <tr>
+                    <td>{{ "%.4e"|format(item[0]) }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="matrix-container" style="margin-bottom: 2rem;">
+            <h4>Plaintext Result (5x5 excerpt)</h4>
+            <table>
+                {% for row in matrices.plaintext_result[:5] %}
+                <tr>
+                    {% for item in row[:5] %} <td>{{ "%.4e"|format(item) }}</td> {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="matrix-container">
+            <h4>SMPC Result (5x5 excerpt)</h4>
+            <table>
+                {% for row in matrices.smpc_result[:5] %}
+                <tr>
+                    {% for item in row[:5] %} <td>{{ "%.4e"|format(item) }}</td> {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+{% else %}
+    <p>No computation has been run yet. Click "Start Computation" and then "Latest Comparison".</p>
+{% endif %}

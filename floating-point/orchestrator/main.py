@@ -85,6 +85,9 @@ class SMPCOrchestrator:
         self.grpc_port = int(os.getenv('GRPC_PORT', 50051))
         self.party_addresses = os.getenv('PARTY_GRPC_ADDRESSES', '').split(',')
         
+        # CORRECT: Initialize latest_matrices dictionary
+        self.latest_matrices = {}
+        
         self.results_df = pd.DataFrame()
         self.csv_file = '/app/results/floating_point_results.csv'
         if os.path.exists(self.csv_file): self.results_df = pd.read_csv(self.csv_file)
@@ -161,12 +164,14 @@ class SMPCOrchestrator:
         @self.app.route('/api/get_results', methods=['GET'])
         def get_results():
             results = self.results_df.to_dict('records')
-            # Render both the table and the chart fragment in one response.
-            # htmx will place the main content in the target, and the OOB content
-            # in the element with the matching ID.
+            # CORRECT: Render only the table, no chart
             table_html = render_template('results_table.html', results=results)
-            chart_html = render_template('chart.html', results=results)
-            return Response(table_html + chart_html)
+            return Response(table_html)
+
+        # CORRECT: Add new route for matrix comparison
+        @self.app.route('/api/latest_comparison')
+        def latest_comparison():
+            return render_template('latest_comparison.html', matrices=self.latest_matrices)
 
         @self.app.route('/api/download_results', methods=['GET'])
         def download_results():
@@ -217,7 +222,7 @@ class SMPCOrchestrator:
 
         logging.info(f"All parties have completed step '{step_name}' successfully.")
 
-
+    # --- CORRECTED run_computation Method ---
     def run_computation(self, config, run_id):
         logging.info(f"--- Starting new computation (ID: {run_id[:8]}) ---")
         logging.info(f"Configuration: {config}")
@@ -228,7 +233,11 @@ class SMPCOrchestrator:
             matrices = self.generate_matrices(config)
             if matrices is None: return
 
+            # This call now returns the final matrix in its result dictionary
             result_metrics = self.execute_secure_computation(matrices, config, run_id)
+
+            # Extract the final computed matrix from the results
+            final_computed = result_metrics['smpc_result']
             
             result_metrics.update(config)
             result_metrics['run_id'] = run_id
@@ -236,6 +245,18 @@ class SMPCOrchestrator:
             with self.computation_lock:
                 self.results_df = pd.concat([self.results_df, pd.DataFrame([result_metrics])], ignore_index=True)
                 self.results_df.to_csv(self.csv_file, index=False)
+                # CORRECT: Save the latest result to a new CSV file
+                self.results_df.tail(1).to_csv('/app/results/latest_result.csv', index=False)
+
+            # CORRECT: Populate the dictionary for the comparison page
+            self.latest_matrices = {
+                'A': matrices['A'],
+                'T': matrices['T'],
+                'B': matrices['B'],
+                'f': matrices['f'],
+                'plaintext_result': matrices['final_plaintext_result'],
+                'smpc_result': final_computed
+            }
             
             logging.info(f"--- Computation {run_id[:8]} completed successfully ---")
         except Exception as e:
@@ -282,6 +303,7 @@ class SMPCOrchestrator:
             logging.error(f"Matrix generation failed: {e}", exc_info=True)
             return None
 
+    # --- CORRECTED execute_secure_computation Method ---
     def execute_secure_computation(self, matrices, config, run_id):
         start_time = time.time()
         
@@ -329,7 +351,14 @@ class SMPCOrchestrator:
         error_metrics = calculate_error_metrics(final_computed, matrices['final_plaintext_result'])
         logging.info(f"Error metrics: {error_metrics}")
         
-        return {'float_point_time_s': duration, **{f'float_{k}': v for k, v in error_metrics.items()}, 'matrix_cond_A': matrices['matrix_cond_A'], 'matrix_cond_T': matrices['matrix_cond_T']}
+        # CORRECT: Include the final computed matrix in the returned dictionary
+        return {
+            'float_point_time_s': duration,
+            'smpc_result': final_computed,  # <-- THIS IS THE KEY FIX
+            **{f'float_{k}': v for k, v in error_metrics.items()},
+            'matrix_cond_A': matrices['matrix_cond_A'],
+            'matrix_cond_T': matrices['matrix_cond_T']
+        }
 
     def reconstruct_matrix(self, computation_id, matrix_name):
         logging.info(f"Collecting shares to reconstruct '{matrix_name}'...")

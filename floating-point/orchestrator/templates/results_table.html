@@ -5,11 +5,12 @@
     <table>
         <thead>
             <tr>
-                {# Only display a curated list of important columns #}
                 <th>Run ID</th>
                 <th>Time (s)</th>
-                <th>Mean Abs Error</th>
                 <th>Max Abs Error</th>
+                <th>Mean Abs Error</th>
+                <th>Max Rel Error</th>
+                <th>Mean Rel Error</th>
                 <th>SNR (dB)</th>
                 <th>N</th>
                 <th>R</th>
@@ -22,9 +23,11 @@
                 <tr>
                     <td title="{{ result.run_id }}">{{ result.run_id[:8] }}...</td>
                     <td>{{ "%.2f"|format(result.float_point_time_s) }}</td>
-                    <td>{{ "%.6f"|format(result.float_mean_abs_error) }}</td>
-                    <td>{{ "%.6f"|format(result.float_max_abs_error) }}</td>
-                    <td>{{ "%.2f"|format(result.float_snr_db) }}</td>
+                    <td>{{ "%.2e"|format(result.float_max_abs_error) }}</td>
+                    <td>{{ "%.2e"|format(result.float_mean_abs_error) }}</td>
+                    <td>{{ "%.2e"|format(result.float_max_rel_error) }}</td>
+                    <td>{{ "%.2e"|format(result.float_mean_rel_error) }}</td>
+                    <td>{{ "%.2e"|format(result.float_snr_db) }}</td>
                     <td>{{ result.N }}</td>
                     <td>{{ result.R }}</td>
                     <td>{{ result.A_DENSITY }}</td>
